@@ -1,6 +1,7 @@
+
 import { useState, useCallback } from 'react';
 import { parseExcelFile, extractFinancialMetrics, type ParsedExcelData } from '@/utils/excelParser';
-import { generatePowerPointPresentation } from '@/utils/powerpointGenerator';
+import { generatePowerPointPresentation, DEFAULT_THEME, type ThemeSettings } from '@/utils/powerpointGenerator';
 import { SecurityError } from '@/utils/securityUtils';
 
 export interface ProcessingStep {
@@ -44,7 +45,10 @@ export const useProcessing = () => {
     setSteps(steps => steps.map(step => ({ ...step, status: 'pending', message: undefined })));
   }, []);
 
-  const processFile = useCallback(async (file: File): Promise<ProcessingResult> => {
+  const processFile = useCallback(async (
+    file: File, 
+    customTheme?: Partial<ThemeSettings>
+  ): Promise<ProcessingResult> => {
     setIsProcessing(true);
     setProgress(0);
 
@@ -53,7 +57,6 @@ export const useProcessing = () => {
       updateStep('upload', 'processing');
       setProgress(10);
       
-      // Small delay for UX
       await new Promise(resolve => setTimeout(resolve, 300));
       updateStep('upload', 'completed', 'File uploaded successfully');
 
@@ -85,14 +88,31 @@ export const useProcessing = () => {
         throw new Error('Failed to extract financial data from the model');
       }
 
-      // Step 4: PowerPoint Generation
+      // Step 4: PowerPoint Generation with real implementation
       updateStep('generation', 'processing');
       setProgress(75);
       
       try {
-        const presentationBlob = await generatePowerPointPresentation(parsedData);
+        const theme = { ...DEFAULT_THEME, ...customTheme };
+        
+        const presentationBlob = await generatePowerPointPresentation(
+          parsedData, 
+          theme,
+          {
+            onProgress: (genProgress, message) => {
+              // Map generation progress to overall progress (75-95%)
+              const overallProgress = 75 + (genProgress * 0.2);
+              setProgress(overallProgress);
+              updateStep('generation', 'processing', message);
+            },
+            onError: (error) => {
+              updateStep('generation', 'error', error);
+            }
+          }
+        );
+        
         updateStep('generation', 'completed', 'Professional presentation generated');
-        setProgress(90);
+        setProgress(95);
         
         // Step 5: Complete
         updateStep('complete', 'processing');
