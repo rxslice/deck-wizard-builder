@@ -1,10 +1,7 @@
-
 import { Button } from "@/components/ui/button";
 import { TrendingUp, Shield, Zap, Download } from "lucide-react";
-
 export default function HeroSection() {
-  return (
-    <section className="hero-gradient text-white py-20 px-4 min-h-screen flex items-center">
+  return <section className="hero-gradient text-white py-20 px-4 min-h-screen flex items-center">
       <div className="container mx-auto">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           <div className="animate-fade-in">
@@ -27,17 +24,10 @@ export default function HeroSection() {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 mb-8">
-              <Button 
-                size="lg" 
-                className="bg-financial-gold hover:bg-financial-gold-light text-financial-navy font-semibold px-8 py-3 rounded-lg transition-all duration-300 transform hover:scale-105"
-              >
+              <Button size="lg" className="bg-financial-gold hover:bg-financial-gold-light text-financial-navy font-semibold px-8 py-3 rounded-lg transition-all duration-300 transform hover:scale-105">
                 Start Building Your Deck
               </Button>
-              <Button 
-                variant="outline" 
-                size="lg"
-                className="border-white/30 text-white hover:bg-white/10 px-8 py-3 rounded-lg"
-              >
+              <Button variant="outline" size="lg" className="border-white/30 hover:bg-white/10 px-8 py-3 rounded-lg text-gray-900">
                 <Download className="w-4 h-4 mr-2" />
                 Download Template
               </Button>
@@ -70,6 +60,5 @@ export default function HeroSection() {
           </div>
         </div>
       </div>
-    </section>
-  );
+    </section>;
 }
