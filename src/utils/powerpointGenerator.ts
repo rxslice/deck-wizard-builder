@@ -1,4 +1,3 @@
-
 import PptxGenJS from 'pptxgenjs';
 import { ParsedExcelData } from './excelParser';
 
@@ -258,10 +257,10 @@ export class PowerPointGenerator {
       });
     }
 
+    // Fixed: Remove unsupported columnWidth property
     slide.addTable(tableData, {
       x: 0.5, y: 1.8, w: 9, h: 4.5,
-      border: { type: 'solid', color: this.theme.accentColor, pt: 1 },
-      columnWidth: Array(tableData[0]?.length || 1).fill(9 / (tableData[0]?.length || 1))
+      border: { type: 'solid', color: this.theme.accentColor, pt: 1 }
     });
 
     this.slides.push({
@@ -293,7 +292,7 @@ export class PowerPointGenerator {
         titleFontSize: 16,
         titleColor: this.theme.primaryColor,
         showLegend: true,
-        legendPos: 'bottom',
+        legendPos: 'b', // Fixed: Use 'b' instead of 'bottom'
         barDir: 'col',
         chartColors: [this.theme.accentColor, this.theme.secondaryColor, this.theme.primaryColor]
       });
@@ -358,9 +357,9 @@ export class PowerPointGenerator {
       
       callbacks.onProgress?.(85, 'Generating PowerPoint file...');
       
-      // Generate the presentation
+      // Fixed: Use proper WriteProps object format
       const blob = await new Promise<Blob>((resolve, reject) => {
-        this.pptx.write('blob')
+        this.pptx.write({ outputType: 'blob' })
           .then((blob) => resolve(blob as Blob))
           .catch(reject);
       });
