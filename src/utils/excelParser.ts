@@ -32,7 +32,7 @@ export const parseExcelFile = async (file: File): Promise<ParsedExcelData> => {
     // Read file as array buffer
     const arrayBuffer = await file.arrayBuffer();
     
-    // Parse with SheetJS (version 0.19.3+ for security)
+    // Parse with SheetJS with security options
     const workbook = XLSX.read(arrayBuffer, { 
       type: 'array',
       // Security options

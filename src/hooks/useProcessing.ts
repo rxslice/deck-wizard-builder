@@ -16,6 +16,7 @@ export interface ProcessingResult {
   slides?: any[];
   validation?: any;
   error?: string;
+  presentationBlob?: Blob;
 }
 
 export const useProcessing = () => {
