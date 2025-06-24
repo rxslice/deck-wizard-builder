@@ -1,4 +1,3 @@
-
 import PptxGenJS from 'pptxgenjs';
 import JSZip from 'jszip';
 import { ParsedExcelData } from './excelParser';
@@ -213,9 +212,12 @@ export class PowerPointGenerator {
     
     if (tableData[0]) {
       tableData[0].forEach(cell => {
-        cell.options.bold = true;
-        cell.options.color = 'FFFFFF';
-        cell.options.fill = { color: this.theme.secondaryColor };
+        cell.options = {
+          ...cell.options,
+          bold: true,
+          color: 'FFFFFF',
+          fill: { color: this.theme.secondaryColor }
+        };
       });
     }
     
@@ -277,12 +279,12 @@ export class PowerPointGenerator {
       fit: 'shrink' 
     });
     
-    slide.addChart(this.pptx.ChartType.bar3D, dataSeries, {
+    slide.addChart(this.pptx.ChartType.bar, dataSeries, {
       x: 1, y: 2, w: 8, h: 4,
-      title: `${name} 3D Bar`,
+      title: `${name} Bar Chart`,
       chartColors: [this.theme.primaryColor, this.theme.secondaryColor, this.theme.accentColor],
       legendPos: 'b',
-      altText: `${name} 3D bar chart`,
+      altText: `${name} bar chart`,
       plotArea: { border: { color: this.theme.primaryColor, pt: 1 } }
     });
     
@@ -402,10 +404,12 @@ export class PowerPointGenerator {
     let blob: Blob;
     const startTime = Date.now();
     try {
-      blob = await this.pptx.write({ outputType: 'blob', compression: 'DEFLATE' });
+      const result = await this.pptx.write({ outputType: 'blob' as const, compression: 'DEFLATE' });
+      blob = result as Blob;
     } catch (err) {
       callbacks.onProgress?.(70, 'Retrying without compression for performance');
-      blob = await this.pptx.write({ outputType: 'blob', compression: 'STORE' });
+      const result = await this.pptx.write({ outputType: 'blob' as const, compression: 'STORE' });
+      blob = result as Blob;
     }
 
     const duration = Date.now() - startTime;
