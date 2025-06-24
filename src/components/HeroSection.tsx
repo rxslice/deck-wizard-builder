@@ -1,11 +1,8 @@
-
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, Shield, Zap, Download, Play, ArrowRight } from "lucide-react";
-
 export default function HeroSection() {
-  return (
-    <section className="hero-gradient text-white py-20 px-4 min-h-screen flex items-center">
+  return <section className="hero-gradient text-white py-20 px-4 min-h-screen flex items-center">
       <div className="container mx-auto">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           <div className="animate-fade-in">
@@ -32,7 +29,7 @@ export default function HeroSection() {
                 Start Building Your Deck
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
-              <Button variant="outline" size="lg" className="border-white/30 hover:bg-white/10 px-8 py-4 rounded-lg text-white hover:text-white">
+              <Button variant="outline" size="lg" className="border-white/30 px-8 py-4 rounded-lg text-white hover:text-white bg-gray-600 hover:bg-gray-500">
                 <Play className="w-4 h-4 mr-2" />
                 Watch Demo (2 min)
               </Button>
@@ -109,6 +106,5 @@ export default function HeroSection() {
           </div>
         </div>
       </div>
-    </section>
-  );
+    </section>;
 }
