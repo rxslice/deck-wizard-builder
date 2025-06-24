@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -6,11 +5,15 @@ import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, XCircle, Eye, Downl
 import { useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useProcessing } from "@/hooks/useProcessing";
+import SlidePreview from "./SlidePreview";
+import { PresentationSlide } from "@/utils/powerpointGenerator";
 
 export default function FileUpload() {
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [processingError, setProcessingError] = useState<string | null>(null);
+  const [generatedSlides, setGeneratedSlides] = useState<PresentationSlide[]>([]);
+  const [presentationBlob, setPresentationBlob] = useState<Blob | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -88,6 +91,8 @@ export default function FileUpload() {
     if (!selectedFile) return;
     
     setProcessingError(null);
+    setGeneratedSlides([]);
+    setPresentationBlob(null);
     
     try {
       const result = await processFile(selectedFile);
@@ -100,6 +105,12 @@ export default function FileUpload() {
           variant: "destructive"
         });
       } else {
+        if (result.slides) {
+          setGeneratedSlides(result.slides);
+        }
+        if (result.presentationBlob) {
+          setPresentationBlob(result.presentationBlob);
+        }
         toast({
           title: "Success!",
           description: "Your presentation has been generated successfully.",
@@ -114,6 +125,26 @@ export default function FileUpload() {
         variant: "destructive"
       });
     }
+  };
+
+  const handleDownload = () => {
+    if (presentationBlob) {
+      const url = URL.createObjectURL(presentationBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${selectedFile?.name?.replace(/\.[^/.]+$/, '') || 'presentation'}.pptx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  const handleSlidePreview = (slide: PresentationSlide) => {
+    toast({
+      title: `Slide ${slide.id}: ${slide.title}`,
+      description: slide.preview,
+    });
   };
 
   const getStepIcon = (status: 'pending' | 'processing' | 'completed' | 'error') => {
@@ -249,6 +280,16 @@ export default function FileUpload() {
                 </div>
               </div>
             )}
+
+            {hasGeneration && generatedSlides.length > 0 && (
+              <div className="mt-6 pt-6 border-t border-financial-gold/20">
+                <h4 className="font-medium text-financial-navy mb-3">Generated Slides Preview</h4>
+                <SlidePreview 
+                  slides={generatedSlides} 
+                  onSlideClick={handleSlidePreview}
+                />
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -284,6 +325,8 @@ export default function FileUpload() {
                 <Button 
                   className="bg-financial-gold hover:bg-financial-gold-light text-financial-navy"
                   aria-label="Download PowerPoint presentation"
+                  onClick={handleDownload}
+                  disabled={!presentationBlob}
                 >
                   <Download className="w-4 h-4 mr-1" />
                   Download PPTX
@@ -291,10 +334,20 @@ export default function FileUpload() {
               </div>
             </div>
             
-            <div className="text-sm text-slate-600">
-              Your professional presentation is ready. The file includes formatted slides with your financial data, 
-              charts, and analysis - all generated securely in your browser.
+            <div className="text-sm text-slate-600 mb-4">
+              Your professional presentation is ready with {generatedSlides.length} slides. 
+              The file includes formatted slides with your financial data, charts, and analysis - all generated securely in your browser.
             </div>
+
+            {generatedSlides.length > 0 && (
+              <div>
+                <h5 className="font-medium text-financial-navy mb-2">Slide Overview</h5>
+                <SlidePreview 
+                  slides={generatedSlides} 
+                  onSlideClick={handleSlidePreview}
+                />
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

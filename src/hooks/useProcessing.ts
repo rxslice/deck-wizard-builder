@@ -1,7 +1,7 @@
 
 import { useState, useCallback } from 'react';
 import { parseExcelFile, extractFinancialMetrics, type ParsedExcelData } from '@/utils/excelParser';
-import { generatePowerPointPresentation, DEFAULT_THEME, type ThemeSettings } from '@/utils/powerpointGenerator';
+import { generatePowerPointPresentation, DEFAULT_THEME, type ThemeSettings, type PresentationSlide } from '@/utils/powerpointGenerator';
 import { SecurityError } from '@/utils/securityUtils';
 
 export interface ProcessingStep {
@@ -14,7 +14,7 @@ export interface ProcessingStep {
 
 export interface ProcessingResult {
   success: boolean;
-  slides?: any[];
+  slides?: PresentationSlide[];
   validation?: any;
   error?: string;
   presentationBlob?: Blob;
@@ -94,6 +94,7 @@ export const useProcessing = () => {
       
       try {
         const theme = { ...DEFAULT_THEME, ...customTheme };
+        let generatedSlides: PresentationSlide[] = [];
         
         const presentationBlob = await generatePowerPointPresentation(
           parsedData, 
@@ -105,13 +106,16 @@ export const useProcessing = () => {
               setProgress(overallProgress);
               updateStep('generation', 'processing', message);
             },
+            onComplete: (blob, slides) => {
+              generatedSlides = slides || [];
+            },
             onError: (error) => {
               updateStep('generation', 'error', error);
             }
           }
         );
         
-        updateStep('generation', 'completed', 'Professional presentation generated');
+        updateStep('generation', 'completed', `Generated ${generatedSlides.length} slides`);
         setProgress(95);
         
         // Step 5: Complete
@@ -124,11 +128,7 @@ export const useProcessing = () => {
         
         return {
           success: true,
-          slides: [
-            { id: 1, title: 'Executive Summary', type: 'summary', preview: 'Key valuation metrics' },
-            { id: 2, title: 'Valuation Summary', type: 'table', preview: 'DCF, Comps, Precedent Transactions' },
-            { id: 3, title: 'Financial Analysis', type: 'chart', preview: 'Revenue and margin analysis' }
-          ],
+          slides: generatedSlides,
           validation: parsedData.validation,
           presentationBlob
         };
