@@ -212,7 +212,7 @@ export class PowerPointGenerator {
     
     if (tableData[0]) {
       tableData[0].forEach(cell => {
-        cell.options = {
+        (cell.options as any) = {
           ...cell.options,
           bold: true,
           color: 'FFFFFF',
@@ -404,11 +404,11 @@ export class PowerPointGenerator {
     let blob: Blob;
     const startTime = Date.now();
     try {
-      const result = await this.pptx.write({ outputType: 'blob' as const, compression: 'DEFLATE' });
+      const result = await this.pptx.write({ outputType: 'blob' as const, compression: true });
       blob = result as Blob;
     } catch (err) {
       callbacks.onProgress?.(70, 'Retrying without compression for performance');
-      const result = await this.pptx.write({ outputType: 'blob' as const, compression: 'STORE' });
+      const result = await this.pptx.write({ outputType: 'blob' as const, compression: false });
       blob = result as Blob;
     }
 
