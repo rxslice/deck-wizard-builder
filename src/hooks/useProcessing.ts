@@ -20,9 +20,17 @@ export interface ProcessingResult {
   presentationBlob?: Blob;
 }
 
+export interface ProcessingSession {
+  fileName: string;
+  completed: boolean;
+  hasValidation: boolean;
+  hasGeneration: boolean;
+}
+
 export const useProcessing = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [currentSession, setCurrentSession] = useState<ProcessingSession | null>(null);
   const [steps, setSteps] = useState<ProcessingStep[]>([
     { id: 'upload', name: 'File Upload', status: 'pending' },
     { id: 'validation', name: 'Security Validation', status: 'pending' },
@@ -42,7 +50,17 @@ export const useProcessing = () => {
   const resetProcessing = useCallback(() => {
     setIsProcessing(false);
     setProgress(0);
+    setCurrentSession(null);
     setSteps(steps => steps.map(step => ({ ...step, status: 'pending', message: undefined })));
+  }, []);
+
+  const initializeSession = useCallback((fileName: string) => {
+    setCurrentSession({
+      fileName,
+      completed: false,
+      hasValidation: false,
+      hasGeneration: false
+    });
   }, []);
 
   const processFile = useCallback(async (
@@ -51,6 +69,7 @@ export const useProcessing = () => {
   ): Promise<ProcessingResult> => {
     setIsProcessing(true);
     setProgress(0);
+    initializeSession(file.name);
 
     try {
       // Step 1: File Upload & Security Validation
@@ -68,6 +87,7 @@ export const useProcessing = () => {
       try {
         parsedData = await parseExcelFile(file);
         updateStep('validation', 'completed', `Validated ${parsedData.metadata.sheetCount} sheets, macros stripped`);
+        setCurrentSession(prev => prev ? { ...prev, hasValidation: true } : null);
       } catch (error) {
         updateStep('validation', 'error', error instanceof Error ? error.message : 'Validation failed');
         throw error;
@@ -116,6 +136,7 @@ export const useProcessing = () => {
         );
         
         updateStep('generation', 'completed', `Generated ${generatedSlides.length} slides`);
+        setCurrentSession(prev => prev ? { ...prev, hasGeneration: true } : null);
         setProgress(95);
         
         // Step 5: Complete
@@ -125,6 +146,7 @@ export const useProcessing = () => {
         setProgress(100);
 
         setIsProcessing(false);
+        setCurrentSession(prev => prev ? { ...prev, completed: true } : null);
         
         return {
           success: true,
@@ -154,7 +176,7 @@ export const useProcessing = () => {
         error: errorMessage
       };
     }
-  }, [updateStep]);
+  }, [updateStep, initializeSession]);
 
   return {
     isProcessing,
@@ -162,6 +184,7 @@ export const useProcessing = () => {
     steps,
     processFile,
     resetProcessing,
-    updateStep
+    updateStep,
+    currentSession
   };
 };

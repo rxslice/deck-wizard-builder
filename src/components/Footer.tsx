@@ -21,30 +21,29 @@ export default function Footer() {
           <div>
             <h4 className="font-semibold mb-4">Product</h4>
             <ul className="space-y-2 text-slate-300">
-              <li><a href="#" className="hover:text-financial-gold transition-colors">Features</a></li>
-              <li><a href="#" className="hover:text-financial-gold transition-colors">Templates</a></li>
-              <li><a href="#" className="hover:text-financial-gold transition-colors">Pricing</a></li>
-              <li><a href="#" className="hover:text-financial-gold transition-colors">Security</a></li>
+              <li><a href="/features" className="hover:text-financial-gold transition-colors">Features</a></li>
+              <li><a href="/templates" className="hover:text-financial-gold transition-colors">Templates</a></li>
+              <li><a href="/pricing" className="hover:text-financial-gold transition-colors">Pricing</a></li>
+              <li><a href="/security" className="hover:text-financial-gold transition-colors">Security</a></li>
             </ul>
           </div>
           
           <div>
             <h4 className="font-semibold mb-4">Resources</h4>
             <ul className="space-y-2 text-slate-300">
-              <li><a href="#" className="hover:text-financial-gold transition-colors">Documentation</a></li>
-              <li><a href="#" className="hover:text-financial-gold transition-colors">Video Tutorials</a></li>
-              <li><a href="#" className="hover:text-financial-gold transition-colors">Best Practices</a></li>
-              <li><a href="#" className="hover:text-financial-gold transition-colors">Case Studies</a></li>
+              <li><a href="/documentation" className="hover:text-financial-gold transition-colors">Documentation</a></li>
+              <li><a href="/best-practices" className="hover:text-financial-gold transition-colors">Best Practices</a></li>
+              <li><a href="/privacy" className="hover:text-financial-gold transition-colors">Privacy</a></li>
+              <li><a href="/terms" className="hover:text-financial-gold transition-colors">Terms</a></li>
             </ul>
           </div>
           
           <div>
             <h4 className="font-semibold mb-4">Company</h4>
             <ul className="space-y-2 text-slate-300">
-              <li><a href="#" className="hover:text-financial-gold transition-colors">About</a></li>
-              <li><a href="#" className="hover:text-financial-gold transition-colors">Contact</a></li>
-              <li><a href="#" className="hover:text-financial-gold transition-colors">Privacy</a></li>
-              <li><a href="#" className="hover:text-financial-gold transition-colors">Terms</a></li>
+              <li><a href="/contact" className="hover:text-financial-gold transition-colors">Contact</a></li>
+              <li><a href="/privacy" className="hover:text-financial-gold transition-colors">Privacy</a></li>
+              <li><a href="/terms" className="hover:text-financial-gold transition-colors">Terms</a></li>
             </ul>
           </div>
         </div>

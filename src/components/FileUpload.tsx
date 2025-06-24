@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -22,7 +23,8 @@ export default function FileUpload() {
     progress, 
     steps, 
     processFile, 
-    resetProcessing 
+    resetProcessing,
+    currentSession
   } = useProcessing();
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -77,6 +79,8 @@ export default function FileUpload() {
     if (validateExcelFile(file)) {
       setSelectedFile(file);
       setProcessingError(null);
+      setGeneratedSlides([]);
+      setPresentationBlob(null);
       resetProcessing();
     }
   };
@@ -160,9 +164,10 @@ export default function FileUpload() {
     }
   };
 
-  const completedSteps = steps.filter(step => step.status === 'completed');
-  const hasValidation = completedSteps.some(step => step.id === 'validation');
-  const hasGeneration = completedSteps.some(step => step.id === 'generation');
+  // Only show completion states if we have a current session and processing has occurred
+  const hasValidation = currentSession?.hasValidation || false;
+  const hasGeneration = currentSession?.hasGeneration || false;
+  const isCompleted = currentSession?.completed || false;
 
   return (
     <div className="space-y-6">
@@ -312,7 +317,7 @@ export default function FileUpload() {
         </Card>
       )}
 
-      {hasGeneration && (
+      {isCompleted && (
         <Card className="border-financial-blue bg-financial-blue/5">
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
@@ -387,7 +392,7 @@ export default function FileUpload() {
             </div>
           </div>
         </CardContent>
-      </Card>
+      )}
     </div>
   );
 }
