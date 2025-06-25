@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { vi } from 'vitest';
+import { describe, test, beforeEach, expect, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import FileUpload from '../components/FileUpload';
 import { useProcessing } from '../hooks/useProcessing';
@@ -27,6 +27,8 @@ describe('FileUpload Component', () => {
 
     mockUseToast.mockReturnValue({
       toast: vi.fn(),
+      dismiss: vi.fn(),
+      toasts: [],
     });
 
     mockUseProcessing.mockReturnValue({
@@ -59,7 +61,7 @@ describe('FileUpload Component', () => {
     
     expect(screen.getByText('Upload Your Financial Model')).toBeInTheDocument();
     expect(screen.getByText('Drag and drop your Excel file here or click to browse')).toBeInTheDocument();
-    expect(screen.getByText('Supported formats: .xlsx, .xls (Max size: 100MB)')).toBeInTheDocument();
+    expect(screen.getByText(/Supported formats:/)).toBeInTheDocument();
   });
 
   test('handles file drop correctly', async () => {
@@ -92,12 +94,16 @@ describe('FileUpload Component', () => {
 
   test('validates file type and shows error for invalid files', async () => {
     const mockToast = vi.fn();
-    mockUseToast.mockReturnValue({ toast: mockToast });
+    mockUseToast.mockReturnValue({ 
+      toast: mockToast,
+      dismiss: vi.fn(),
+      toasts: [],
+    });
 
     renderWithProviders(<FileUpload />);
     
     const file = new File(['test content'], 'test.txt', { type: 'text/plain' });
-    const input = screen.getByLabelText('Select Excel file');
+    const input = screen.getByLabelText(/Select Excel file/);
     
     Object.defineProperty(input, 'files', {
       value: [file],

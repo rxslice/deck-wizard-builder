@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useReducer, useCallback, useRef } from 'react';
 import { parseExcelFile, extractFinancialMetrics, type ParsedExcelData } from '@/utils/excelParser';
 import { generatePowerPointPresentation, DEFAULT_THEME, type ThemeSettings, type PresentationSlide } from '@/utils/powerpointGenerator';
 import { SecurityError } from '@/utils/securityUtils';
@@ -17,6 +17,7 @@ export interface ProcessingResult {
   slides?: PresentationSlide[];
   validation?: any;
   error?: string;
+  errorCode?: string;
   presentationBlob?: Blob;
 }
 
@@ -27,90 +28,190 @@ export interface ProcessingSession {
   hasGeneration: boolean;
 }
 
+interface ProcessingState {
+  isProcessing: boolean;
+  progress: number;
+  currentSession: ProcessingSession | null;
+  steps: ProcessingStep[];
+}
+
+type ProcessingAction =
+  | { type: 'START_PROCESSING'; fileName: string }
+  | { type: 'UPDATE_PROGRESS'; progress: number }
+  | { type: 'UPDATE_STEP'; stepId: string; status: ProcessingStep['status']; message?: string }
+  | { type: 'SET_SESSION_FLAG'; flag: 'hasValidation' | 'hasGeneration'; value: boolean }
+  | { type: 'COMPLETE_SESSION' }
+  | { type: 'RESET' };
+
+const initialSteps: ProcessingStep[] = [
+  { id: 'upload', name: 'File Upload', status: 'pending' },
+  { id: 'validation', name: 'Security Validation', status: 'pending' },
+  { id: 'extraction', name: 'Data Extraction', status: 'pending' },
+  { id: 'generation', name: 'Slide Generation', status: 'pending' },
+  { id: 'complete', name: 'Presentation Ready', status: 'pending' }
+];
+
+const initialState: ProcessingState = {
+  isProcessing: false,
+  progress: 0,
+  currentSession: null,
+  steps: initialSteps,
+};
+
+function processingReducer(state: ProcessingState, action: ProcessingAction): ProcessingState {
+  switch (action.type) {
+    case 'START_PROCESSING':
+      return {
+        ...state,
+        isProcessing: true,
+        progress: 0,
+        currentSession: {
+          fileName: action.fileName,
+          completed: false,
+          hasValidation: false,
+          hasGeneration: false,
+        },
+        steps: initialSteps.map(step => ({ ...step, status: 'pending', message: undefined })),
+      };
+
+    case 'UPDATE_PROGRESS':
+      return {
+        ...state,
+        progress: action.progress,
+      };
+
+    case 'UPDATE_STEP':
+      return {
+        ...state,
+        steps: state.steps.map(step =>
+          step.id === action.stepId 
+            ? { ...step, status: action.status, message: action.message }
+            : step
+        ),
+      };
+
+    case 'SET_SESSION_FLAG':
+      return {
+        ...state,
+        currentSession: state.currentSession 
+          ? { ...state.currentSession, [action.flag]: action.value }
+          : null,
+      };
+
+    case 'COMPLETE_SESSION':
+      return {
+        ...state,
+        isProcessing: false,
+        currentSession: state.currentSession 
+          ? { ...state.currentSession, completed: true }
+          : null,
+      };
+
+    case 'RESET':
+      return initialState;
+
+    default:
+      return state;
+  }
+}
+
 export const useProcessing = () => {
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [currentSession, setCurrentSession] = useState<ProcessingSession | null>(null);
-  const [steps, setSteps] = useState<ProcessingStep[]>([
-    { id: 'upload', name: 'File Upload', status: 'pending' },
-    { id: 'validation', name: 'Security Validation', status: 'pending' },
-    { id: 'extraction', name: 'Data Extraction', status: 'pending' },
-    { id: 'generation', name: 'Slide Generation', status: 'pending' },
-    { id: 'complete', name: 'Presentation Ready', status: 'pending' }
-  ]);
+  const [state, dispatch] = useReducer(processingReducer, initialState);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Dynamic progress calculation based on steps
+  const calculateProgress = useCallback((stepId: string, stepProgress = 0) => {
+    const stepIndex = state.steps.findIndex(s => s.id === stepId);
+    const baseProgress = (stepIndex / state.steps.length) * 100;
+    const stepWeight = 100 / state.steps.length;
+    return baseProgress + (stepProgress * stepWeight);
+  }, [state.steps]);
 
   const updateStep = useCallback((stepId: string, status: ProcessingStep['status'], message?: string) => {
-    setSteps(prevSteps => 
-      prevSteps.map(step => 
-        step.id === stepId ? { ...step, status, message } : step
-      )
-    );
-  }, []);
+    dispatch({ type: 'UPDATE_STEP', stepId, status, message });
+    
+    // Update progress based on step completion
+    if (status === 'completed') {
+      const progress = calculateProgress(stepId, 1);
+      dispatch({ type: 'UPDATE_PROGRESS', progress });
+    }
+  }, [calculateProgress]);
 
   const resetProcessing = useCallback(() => {
-    setIsProcessing(false);
-    setProgress(0);
-    setCurrentSession(null);
-    setSteps(steps => steps.map(step => ({ ...step, status: 'pending', message: undefined })));
-  }, []);
-
-  const initializeSession = useCallback((fileName: string) => {
-    setCurrentSession({
-      fileName,
-      completed: false,
-      hasValidation: false,
-      hasGeneration: false
-    });
+    // Cancel any ongoing processing
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    
+    dispatch({ type: 'RESET' });
   }, []);
 
   const processFile = useCallback(async (
     file: File, 
     customTheme?: Partial<ThemeSettings>
   ): Promise<ProcessingResult> => {
-    setIsProcessing(true);
-    setProgress(0);
-    initializeSession(file.name);
+    // Create abort controller for cancellation
+    abortControllerRef.current = new AbortController();
+    const { signal } = abortControllerRef.current;
+
+    dispatch({ type: 'START_PROCESSING', fileName: file.name });
 
     try {
+      // Check if cancelled
+      if (signal.aborted) throw new Error('Processing cancelled');
+
       // Step 1: File Upload & Security Validation
       updateStep('upload', 'processing');
-      setProgress(10);
+      dispatch({ type: 'UPDATE_PROGRESS', progress: calculateProgress('upload', 0.5) });
       
       await new Promise(resolve => setTimeout(resolve, 300));
+      if (signal.aborted) throw new Error('Processing cancelled');
+      
       updateStep('upload', 'completed', 'File uploaded successfully');
 
       // Step 2: Security Validation & Parsing
       updateStep('validation', 'processing');
-      setProgress(25);
       
       let parsedData: ParsedExcelData;
       try {
         parsedData = await parseExcelFile(file);
+        if (signal.aborted) throw new Error('Processing cancelled');
+        
         updateStep('validation', 'completed', `Validated ${parsedData.metadata.sheetCount} sheets, macros stripped`);
-        setCurrentSession(prev => prev ? { ...prev, hasValidation: true } : null);
+        dispatch({ type: 'SET_SESSION_FLAG', flag: 'hasValidation', value: true });
       } catch (error) {
-        updateStep('validation', 'error', error instanceof Error ? error.message : 'Validation failed');
-        throw error;
+        const errorMessage = error instanceof SecurityError 
+          ? `Security validation failed: ${error.message}`
+          : 'File validation failed';
+        updateStep('validation', 'error', errorMessage);
+        
+        return {
+          success: false,
+          error: errorMessage,
+          errorCode: error instanceof SecurityError ? 'SECURITY_ERROR' : 'VALIDATION_FAILED'
+        };
       }
-      
-      setProgress(45);
 
       // Step 3: Data Extraction
       updateStep('extraction', 'processing');
-      await new Promise(resolve => setTimeout(resolve, 500));
       
       try {
         const metrics = extractFinancialMetrics(parsedData);
+        if (signal.aborted) throw new Error('Processing cancelled');
+        
         updateStep('extraction', 'completed', 'Financial metrics and data extracted');
-        setProgress(65);
       } catch (error) {
         updateStep('extraction', 'error', 'Data extraction failed');
-        throw new Error('Failed to extract financial data from the model');
+        return {
+          success: false,
+          error: 'Failed to extract financial data from the model',
+          errorCode: 'EXTRACTION_FAILED'
+        };
       }
 
-      // Step 4: PowerPoint Generation with real implementation
+      // Step 4: PowerPoint Generation
       updateStep('generation', 'processing');
-      setProgress(75);
       
       try {
         const theme = { ...DEFAULT_THEME, ...customTheme };
@@ -121,9 +222,10 @@ export const useProcessing = () => {
           theme,
           {
             onProgress: (genProgress, message) => {
-              // Map generation progress to overall progress (75-95%)
-              const overallProgress = 75 + (genProgress * 0.2);
-              setProgress(overallProgress);
+              if (signal.aborted) return;
+              
+              const overallProgress = calculateProgress('generation', genProgress);
+              dispatch({ type: 'UPDATE_PROGRESS', progress: overallProgress });
               updateStep('generation', 'processing', message);
             },
             onComplete: (blob, slides) => {
@@ -135,18 +237,18 @@ export const useProcessing = () => {
           }
         );
         
+        if (signal.aborted) throw new Error('Processing cancelled');
+        
         updateStep('generation', 'completed', `Generated ${generatedSlides.length} slides`);
-        setCurrentSession(prev => prev ? { ...prev, hasGeneration: true } : null);
-        setProgress(95);
+        dispatch({ type: 'SET_SESSION_FLAG', flag: 'hasGeneration', value: true });
         
         // Step 5: Complete
         updateStep('complete', 'processing');
         await new Promise(resolve => setTimeout(resolve, 200));
+        if (signal.aborted) throw new Error('Processing cancelled');
+        
         updateStep('complete', 'completed', 'Ready for download');
-        setProgress(100);
-
-        setIsProcessing(false);
-        setCurrentSession(prev => prev ? { ...prev, completed: true } : null);
+        dispatch({ type: 'COMPLETE_SESSION' });
         
         return {
           success: true,
@@ -156,35 +258,63 @@ export const useProcessing = () => {
         };
 
       } catch (error) {
+        if (signal.aborted) {
+          return {
+            success: false,
+            error: 'Processing was cancelled',
+            errorCode: 'CANCELLED'
+          };
+        }
+        
         updateStep('generation', 'error', 'PowerPoint generation failed');
-        throw new Error('Failed to generate presentation');
+        return {
+          success: false,
+          error: 'Failed to generate presentation',
+          errorCode: 'GENERATION_FAILED'
+        };
       }
 
     } catch (error) {
-      setIsProcessing(false);
+      if (signal.aborted) {
+        return {
+          success: false,
+          error: 'Processing was cancelled',
+          errorCode: 'CANCELLED'
+        };
+      }
       
       let errorMessage = 'Unknown error occurred';
+      let errorCode = 'UNKNOWN_ERROR';
       
       if (error instanceof SecurityError) {
         errorMessage = `Security Error: ${error.message}`;
+        errorCode = 'SECURITY_ERROR';
       } else if (error instanceof Error) {
         errorMessage = error.message;
       }
       
       return {
         success: false,
-        error: errorMessage
+        error: errorMessage,
+        errorCode
       };
+    } finally {
+      abortControllerRef.current = null;
     }
-  }, [updateStep, initializeSession]);
+  }, [updateStep, calculateProgress]);
 
   return {
-    isProcessing,
-    progress,
-    steps,
+    ...state,
     processFile,
     resetProcessing,
     updateStep,
-    currentSession
+    
+    // Enhanced API
+    canCancel: state.isProcessing,
+    cancelProcessing: () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    },
   };
 };

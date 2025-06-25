@@ -1,3 +1,4 @@
+
 import * as React from "react"
 
 import type {
@@ -90,8 +91,6 @@ export const reducer = (state: State, action: Action): State => {
     case "DISMISS_TOAST": {
       const { toastId } = action
 
-      // ! Side effects ! - This could be extracted into a dismissToast() action,
-      // but I'll keep it here for simplicity
       if (toastId) {
         addToRemoveQueue(toastId)
       } else {
@@ -126,15 +125,28 @@ export const reducer = (state: State, action: Action): State => {
   }
 }
 
-const listeners: Array<(state: State) => void> = []
+// Create Context for better memory management
+const ToastContext = React.createContext<{
+  state: State
+  dispatch: React.Dispatch<Action>
+} | null>(null)
 
-let memoryState: State = { toasts: [] }
+export function ToastProvider({ children }: { children: React.ReactNode }) {
+  const [state, dispatch] = React.useReducer(reducer, { toasts: [] })
+  
+  React.useEffect(() => {
+    return () => {
+      // Cleanup all timeouts on unmount
+      toastTimeouts.forEach((timeout) => clearTimeout(timeout))
+      toastTimeouts.clear()
+    }
+  }, [])
 
-function dispatch(action: Action) {
-  memoryState = reducer(memoryState, action)
-  listeners.forEach((listener) => {
-    listener(memoryState)
-  })
+  return (
+    <ToastContext.Provider value={{ state, dispatch }}>
+      {children}
+    </ToastContext.Provider>
+  )
 }
 
 type Toast = Omit<ToasterToast, "id">
@@ -168,23 +180,44 @@ function toast({ ...props }: Toast) {
   }
 }
 
+// Improved dispatch function
+let dispatch: React.Dispatch<Action>
+
+function setDispatch(dispatchFn: React.Dispatch<Action>) {
+  dispatch = dispatchFn
+}
+
 function useToast() {
-  const [state, setState] = React.useState<State>(memoryState)
+  const context = React.useContext(ToastContext)
+  
+  if (!context) {
+    // Fallback to original implementation for backward compatibility
+    const [state, setState] = React.useState<State>({ toasts: [] })
+    
+    React.useEffect(() => {
+      const cleanup = () => {
+        toastTimeouts.forEach((timeout) => clearTimeout(timeout))
+        toastTimeouts.clear()
+      }
+      
+      return cleanup
+    }, [])
+
+    return {
+      ...state,
+      toast,
+      dismiss: (toastId?: string) => dispatch({ type: "DISMISS_TOAST", toastId }),
+    }
+  }
 
   React.useEffect(() => {
-    listeners.push(setState)
-    return () => {
-      const index = listeners.indexOf(setState)
-      if (index > -1) {
-        listeners.splice(index, 1)
-      }
-    }
-  }, [state])
+    setDispatch(context.dispatch)
+  }, [context.dispatch])
 
   return {
-    ...state,
+    ...context.state,
     toast,
-    dismiss: (toastId?: string) => dispatch({ type: "DISMISS_TOAST", toastId }),
+    dismiss: (toastId?: string) => context.dispatch({ type: "DISMISS_TOAST", toastId }),
   }
 }
 

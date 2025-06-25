@@ -1,6 +1,6 @@
 
 import { renderHook, act } from '@testing-library/react';
-import { vi } from 'vitest';
+import { describe, test, expect, vi } from 'vitest';
 import { useFileUploader } from '../hooks/useFileUploader';
 import { useToast } from '../hooks/use-toast';
 
@@ -10,7 +10,11 @@ const mockUseToast = vi.mocked(useToast);
 
 describe('useFileUploader', () => {
   test('initializes with correct default state', () => {
-    mockUseToast.mockReturnValue({ toast: vi.fn() });
+    mockUseToast.mockReturnValue({ 
+      toast: vi.fn(),
+      dismiss: vi.fn(),
+      toasts: [],
+    });
     
     const { result } = renderHook(() => useFileUploader());
     
@@ -20,7 +24,11 @@ describe('useFileUploader', () => {
 
   test('validates file type correctly', () => {
     const mockToast = vi.fn();
-    mockUseToast.mockReturnValue({ toast: mockToast });
+    mockUseToast.mockReturnValue({ 
+      toast: mockToast,
+      dismiss: vi.fn(),
+      toasts: [],
+    });
     
     const onFileSelect = vi.fn();
     const { result } = renderHook(() => useFileUploader({ onFileSelect }));
@@ -43,7 +51,11 @@ describe('useFileUploader', () => {
 
   test('validates file size correctly', () => {
     const mockToast = vi.fn();
-    mockUseToast.mockReturnValue({ toast: mockToast });
+    mockUseToast.mockReturnValue({ 
+      toast: mockToast,
+      dismiss: vi.fn(),
+      toasts: [],
+    });
     
     const onFileSelect = vi.fn();
     const maxFileSize = 1024; // 1KB for testing
@@ -66,7 +78,11 @@ describe('useFileUploader', () => {
 
   test('handles valid file correctly', () => {
     const mockToast = vi.fn();
-    mockUseToast.mockReturnValue({ toast: mockToast });
+    mockUseToast.mockReturnValue({ 
+      toast: mockToast,
+      dismiss: vi.fn(),
+      toasts: [],
+    });
     
     const onFileSelect = vi.fn();
     const { result } = renderHook(() => useFileUploader({ onFileSelect }));

@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 interface QuickStat {
@@ -69,36 +69,57 @@ export const useDashboardData = () => {
     queryKey: ['dashboardData'],
     queryFn: fetchDashboardData,
     staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes (replaces cacheTime)
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    retry: (failureCount, error) => {
+      if (failureCount < 2) return true;
+      return false;
+    },
   });
 };
 
 export const useRecentModels = (page: number = 1, pageSize: number = 10, searchTerm: string = '') => {
-  const [filteredModels, setFilteredModels] = useState<RecentModel[]>([]);
-  
   const { data, isLoading, error } = useDashboardData();
   
-  useEffect(() => {
-    if (data?.recentModels) {
-      let filtered = data.recentModels;
-      
-      if (searchTerm) {
-        filtered = filtered.filter(model => 
-          model.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          model.type.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-      }
-      
-      const startIndex = (page - 1) * pageSize;
-      const endIndex = startIndex + pageSize;
-      setFilteredModels(filtered.slice(startIndex, endIndex));
+  // Use useMemo instead of useEffect + useState for better performance
+  const { models: filteredModels, totalCount } = useMemo(() => {
+    if (!data?.recentModels) {
+      return { models: [], totalCount: 0 };
     }
+    
+    let filtered = data.recentModels;
+    
+    // Server-side filtering simulation - in real app, move to API
+    if (searchTerm) {
+      filtered = filtered.filter(model => 
+        model.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        model.type.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    const startIndex = (page - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const paginatedModels = filtered.slice(startIndex, endIndex);
+    
+    return {
+      models: paginatedModels,
+      totalCount: filtered.length
+    };
   }, [data, page, pageSize, searchTerm]);
+  
+  // Enhanced error and empty state handling
+  const isEmpty = !isLoading && filteredModels.length === 0;
+  const hasError = !!error;
   
   return {
     models: filteredModels,
-    totalCount: data?.recentModels.length || 0,
+    totalCount,
     isLoading,
-    error
+    error,
+    isEmpty,
+    hasError,
+    // Helper methods for UI state
+    showEmptyState: isEmpty && !searchTerm,
+    showNoResults: isEmpty && !!searchTerm,
+    canLoadMore: totalCount > page * pageSize
   };
 };
