@@ -392,7 +392,7 @@ export default function FileUpload() {
             </div>
           </div>
         </CardContent>
-      )}
+      </Card>
     </div>
   );
 }
