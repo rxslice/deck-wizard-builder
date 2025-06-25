@@ -1,21 +1,18 @@
 
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { vi } from 'vitest';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import FileUpload from '../components/FileUpload';
 import { useProcessing } from '../hooks/useProcessing';
-import { useFileUploader } from '../hooks/useFileUploader';
+import { useToast } from '../hooks/use-toast';
 
-// Mock the hooks
+// Mock dependencies
 vi.mock('../hooks/useProcessing');
-vi.mock('../hooks/useFileUploader');
-vi.mock('@/hooks/use-toast', () => ({
-  useToast: () => ({ toast: vi.fn() })
-}));
+vi.mock('../hooks/use-toast');
 
-const mockUseProcessing = useProcessing as vi.MockedFunction<typeof useProcessing>;
-const mockUseFileUploader = useFileUploader as vi.MockedFunction<typeof useFileUploader>;
+const mockUseProcessing = vi.mocked(useProcessing);
+const mockUseToast = vi.mocked(useToast);
 
 describe('FileUpload Component', () => {
   let queryClient: QueryClient;
@@ -24,28 +21,28 @@ describe('FileUpload Component', () => {
     queryClient = new QueryClient({
       defaultOptions: {
         queries: { retry: false },
-        mutations: { retry: false }
-      }
+        mutations: { retry: false },
+      },
+    });
+
+    mockUseToast.mockReturnValue({
+      toast: vi.fn(),
     });
 
     mockUseProcessing.mockReturnValue({
       isProcessing: false,
       progress: 0,
-      steps: [],
+      steps: [
+        { id: 'upload', name: 'File Upload', status: 'pending' },
+        { id: 'validation', name: 'Security Validation', status: 'pending' },
+        { id: 'extraction', name: 'Data Extraction', status: 'pending' },
+        { id: 'generation', name: 'Slide Generation', status: 'pending' },
+        { id: 'complete', name: 'Presentation Ready', status: 'pending' }
+      ],
       processFile: vi.fn(),
       resetProcessing: vi.fn(),
       updateStep: vi.fn(),
       currentSession: null
-    });
-
-    mockUseFileUploader.mockReturnValue({
-      isDragging: false,
-      selectedFile: null,
-      handleDragOver: vi.fn(),
-      handleDragLeave: vi.fn(),
-      handleDrop: vi.fn(),
-      handleFileInputChange: vi.fn(),
-      resetFile: vi.fn()
     });
   });
 
@@ -57,84 +54,77 @@ describe('FileUpload Component', () => {
     );
   };
 
-  test('renders upload area with correct accessibility labels', () => {
+  test('renders upload area with correct labels', () => {
     renderWithProviders(<FileUpload />);
     
-    const uploadArea = screen.getByRole('button', { name: /upload excel file/i });
-    expect(uploadArea).toBeInTheDocument();
-    
-    const fileInput = screen.getByLabelText(/select excel file/i);
-    expect(fileInput).toBeInTheDocument();
+    expect(screen.getByText('Upload Your Financial Model')).toBeInTheDocument();
+    expect(screen.getByText('Drag and drop your Excel file here or click to browse')).toBeInTheDocument();
+    expect(screen.getByText('Supported formats: .xlsx, .xls (Max size: 100MB)')).toBeInTheDocument();
   });
 
-  test('shows generate button when file is selected', () => {
-    const mockFile = new File(['test'], 'test.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  test('handles file drop correctly', async () => {
+    renderWithProviders(<FileUpload />);
     
-    mockUseFileUploader.mockReturnValue({
-      isDragging: false,
-      selectedFile: mockFile,
-      handleDragOver: vi.fn(),
-      handleDragLeave: vi.fn(),
-      handleDrop: vi.fn(),
-      handleFileInputChange: vi.fn(),
-      resetFile: vi.fn()
+    const dropZone = screen.getByRole('button', { name: /upload excel file/i });
+    
+    const file = new File(['test content'], 'test.xlsx', {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     });
+
+    const dataTransfer = {
+      files: [file],
+      items: [
+        {
+          kind: 'file',
+          type: file.type,
+          getAsFile: () => file,
+        },
+      ],
+      types: ['Files'],
+    };
+
+    fireEvent.dragOver(dropZone, { dataTransfer });
+    fireEvent.drop(dropZone, { dataTransfer });
+
+    expect(screen.getByText('test.xlsx')).toBeInTheDocument();
+    expect(screen.getByText('Generate Presentation')).toBeInTheDocument();
+  });
+
+  test('validates file type and shows error for invalid files', async () => {
+    const mockToast = vi.fn();
+    mockUseToast.mockReturnValue({ toast: mockToast });
 
     renderWithProviders(<FileUpload />);
     
-    const generateButton = screen.getByRole('button', { name: /generate presentation/i });
-    expect(generateButton).toBeInTheDocument();
-    expect(generateButton).not.toBeDisabled();
-  });
-
-  test('disables generate button when processing', () => {
-    const mockFile = new File(['test'], 'test.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const file = new File(['test content'], 'test.txt', { type: 'text/plain' });
+    const input = screen.getByLabelText('Select Excel file');
     
-    mockUseFileUploader.mockReturnValue({
-      isDragging: false,
-      selectedFile: mockFile,
-      handleDragOver: vi.fn(),
-      handleDragLeave: vi.fn(),
-      handleDrop: vi.fn(),
-      handleFileInputChange: vi.fn(),
-      resetFile: vi.fn()
+    Object.defineProperty(input, 'files', {
+      value: [file],
+      writable: false,
     });
 
+    fireEvent.change(input);
+
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith({
+        title: "Invalid File Type",
+        description: "Please select a valid Excel file (.xlsx or .xls)",
+        variant: "destructive"
+      });
+    });
+  });
+
+  test('shows processing steps when file is being processed', () => {
     mockUseProcessing.mockReturnValue({
       isProcessing: true,
       progress: 50,
-      steps: [],
-      processFile: vi.fn(),
-      resetProcessing: vi.fn(),
-      updateStep: vi.fn(),
-      currentSession: null
-    });
-
-    renderWithProviders(<FileUpload />);
-    
-    const generateButton = screen.getByRole('button', { name: /processing file/i });
-    expect(generateButton).toBeDisabled();
-  });
-
-  test('shows progress bar during processing', () => {
-    const mockFile = new File(['test'], 'test.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-    
-    mockUseFileUploader.mockReturnValue({
-      isDragging: false,
-      selectedFile: mockFile,
-      handleDragOver: vi.fn(),
-      handleDragLeave: vi.fn(),
-      handleDrop: vi.fn(),
-      handleFileInputChange: vi.fn(),
-      resetFile: vi.fn()
-    });
-
-    mockUseProcessing.mockReturnValue({
-      isProcessing: true,
-      progress: 75,
       steps: [
         { id: 'upload', name: 'File Upload', status: 'completed' },
-        { id: 'validation', name: 'Security Validation', status: 'processing' }
+        { id: 'validation', name: 'Security Validation', status: 'processing' },
+        { id: 'extraction', name: 'Data Extraction', status: 'pending' },
+        { id: 'generation', name: 'Slide Generation', status: 'pending' },
+        { id: 'complete', name: 'Presentation Ready', status: 'pending' }
       ],
       processFile: vi.fn(),
       resetProcessing: vi.fn(),
@@ -144,7 +134,7 @@ describe('FileUpload Component', () => {
 
     renderWithProviders(<FileUpload />);
     
-    const progressContainer = screen.getByRole('status', { name: /processing progress/i });
-    expect(progressContainer).toBeInTheDocument();
+    expect(screen.getByRole('progressbar')).toBeInTheDocument();
+    expect(screen.getByText('Security Validation')).toBeInTheDocument();
   });
 });
