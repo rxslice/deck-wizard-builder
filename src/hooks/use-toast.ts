@@ -215,7 +215,7 @@ function useToast() {
   }, [context.dispatch])
 
   return {
-    ...context.state,
+    ...state: context.state,
     toast,
     dismiss: (toastId?: string) => context.dispatch({ type: "DISMISS_TOAST", toastId }),
   }
