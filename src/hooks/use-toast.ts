@@ -125,7 +125,6 @@ export const reducer = (state: State, action: Action): State => {
   }
 }
 
-// Create Context for better memory management
 const ToastContext = React.createContext<{
   state: State
   dispatch: React.Dispatch<Action>
@@ -136,7 +135,6 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   
   React.useEffect(() => {
     return () => {
-      // Cleanup all timeouts on unmount
       toastTimeouts.forEach((timeout) => clearTimeout(timeout))
       toastTimeouts.clear()
     }
@@ -150,6 +148,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 }
 
 type Toast = Omit<ToasterToast, "id">
+
+let dispatch: React.Dispatch<Action>
 
 function toast({ ...props }: Toast) {
   const id = genId()
@@ -180,18 +180,10 @@ function toast({ ...props }: Toast) {
   }
 }
 
-// Improved dispatch function
-let dispatch: React.Dispatch<Action>
-
-function setDispatch(dispatchFn: React.Dispatch<Action>) {
-  dispatch = dispatchFn
-}
-
 function useToast() {
   const context = React.useContext(ToastContext)
   
   if (!context) {
-    // Fallback to original implementation for backward compatibility
     const [state, setState] = React.useState<State>({ toasts: [] })
     
     React.useEffect(() => {
@@ -211,7 +203,7 @@ function useToast() {
   }
 
   React.useEffect(() => {
-    setDispatch(context.dispatch)
+    dispatch = context.dispatch
   }, [context.dispatch])
 
   return {

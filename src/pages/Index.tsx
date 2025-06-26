@@ -1,5 +1,6 @@
 
-import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { Navigate } from "react-router-dom";
 import Header from "@/components/Header";
 import HeroSection from "@/components/HeroSection";
 import FeatureSection from "@/components/FeatureSection";
@@ -9,18 +10,22 @@ import Footer from "@/components/Footer";
 import Dashboard from "@/components/Dashboard";
 
 const Index = () => {
-  // This would typically come from authentication context
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const { user, loading } = useAuth();
 
-  // Demo function to toggle between landing page and dashboard
-  const handleGetStarted = () => {
-    setIsLoggedIn(true);
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-financial-gold"></div>
+      </div>
+    );
+  }
 
-  if (isLoggedIn) {
+  // Show dashboard if user is authenticated
+  if (user) {
     return <Dashboard />;
   }
 
+  // Show landing page for unauthenticated users
   return (
     <div className="min-h-screen">
       <Header />

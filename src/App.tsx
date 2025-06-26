@@ -6,8 +6,12 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { AuthProvider } from "@/hooks/useAuth";
+import { ToastProvider } from "@/hooks/use-toast";
 import { analytics } from "@/utils/analytics";
+import { errorTracker } from "@/utils/errorTracking";
 import Index from "./pages/Index";
+import Auth from "./pages/Auth";
 import Features from "./pages/Features";
 import Documentation from "./pages/Documentation";
 import Privacy from "./pages/Privacy";
@@ -24,12 +28,17 @@ const queryClient = new QueryClient({
       staleTime: 5 * 60 * 1000, // 5 minutes
       gcTime: 10 * 60 * 1000, // 10 minutes
       retry: (failureCount, error) => {
+        // Log query errors
+        errorTracker.logError(error as Error);
         if (failureCount < 2) return true;
         return false;
       },
     },
     mutations: {
       retry: false,
+      onError: (error) => {
+        errorTracker.logError(error as Error);
+      },
     },
   },
 });
@@ -39,7 +48,6 @@ function AnalyticsWrapper({ children }: { children: React.ReactNode }) {
   const location = useLocation();
 
   useEffect(() => {
-    // Track page views
     analytics.trackPageView(location.pathname);
   }, [location.pathname]);
 
@@ -48,29 +56,33 @@ function AnalyticsWrapper({ children }: { children: React.ReactNode }) {
 
 const App = () => (
   <StrictMode>
-    <ErrorBoundary>
+    <ErrorBoundary onRetry={() => window.location.reload()}>
       <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <AnalyticsWrapper>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/features" element={<Features />} />
-                <Route path="/documentation" element={<Documentation />} />
-                <Route path="/privacy" element={<Privacy />} />
-                <Route path="/terms" element={<Terms />} />
-                <Route path="/contact" element={<Contact />} />
-                <Route path="/security" element={<Security />} />
-                <Route path="/templates" element={<Templates />} />
-                <Route path="/best-practices" element={<BestPractices />} />
-                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </AnalyticsWrapper>
-          </BrowserRouter>
-        </TooltipProvider>
+        <ToastProvider>
+          <AuthProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <AnalyticsWrapper>
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/auth" element={<Auth />} />
+                    <Route path="/features" element={<Features />} />
+                    <Route path="/documentation" element={<Documentation />} />
+                    <Route path="/privacy" element={<Privacy />} />
+                    <Route path="/terms" element={<Terms />} />
+                    <Route path="/contact" element={<Contact />} />
+                    <Route path="/security" element={<Security />} />
+                    <Route path="/templates" element={<Templates />} />
+                    <Route path="/best-practices" element={<BestPractices />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </AnalyticsWrapper>
+              </BrowserRouter>
+            </TooltipProvider>
+          </AuthProvider>
+        </ToastProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   </StrictMode>
