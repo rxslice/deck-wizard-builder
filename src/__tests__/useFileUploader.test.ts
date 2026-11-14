@@ -36,8 +36,7 @@ describe('useFileUploader', () => {
     const invalidFile = new File(['content'], 'test.txt', { type: 'text/plain' });
     
     act(() => {
-      const event = new Event('change') as any;
-      event.target = { files: [invalidFile] };
+      const event = { target: { files: [invalidFile] } } as any;
       result.current.handleFileInputChange(event);
     });
     
@@ -67,8 +66,7 @@ describe('useFileUploader', () => {
     });
     
     act(() => {
-      const event = new Event('change') as any;
-      event.target = { files: [largeFile] };
+      const event = { target: { files: [largeFile] } } as any;
       result.current.handleFileInputChange(event);
     });
     
@@ -92,8 +90,7 @@ describe('useFileUploader', () => {
     });
     
     act(() => {
-      const event = new Event('change') as any;
-      event.target = { files: [validFile] };
+      const event = { target: { files: [validFile] } } as any;
       result.current.handleFileInputChange(event);
     });
     

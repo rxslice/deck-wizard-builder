@@ -188,12 +188,22 @@ export class PowerPointGenerator {
     });
   }
 
-  private isTable(rows: any[][]): boolean {
-    return rows.length >= 2 && rows[0].every(cell => typeof cell === 'string' || cell === null);
+  // Presentation policy, checked in this order:
+  //  1. Chartable: a header row, at least two data rows, and at least one
+  //     value column (any column after the first) holding numbers. Becomes
+  //     bar, combo and pie chart slides; column one supplies the labels.
+  //  2. Table: anything else with a header row and at least one data row.
+  private isChartable(rows: any[][]): boolean {
+    if (rows.length < 3) return false;
+    const width = rows[0]?.length ?? 0;
+    for (let c = 1; c < width; c++) {
+      if (rows.slice(1).some(r => typeof r[c] === 'number' && !isNaN(r[c]))) return true;
+    }
+    return false;
   }
 
-  private isChart(rows: any[][]): boolean {
-    return rows.length >= 3 && rows.slice(1).some(r => r.some(c => typeof c === 'number' && !isNaN(c)));
+  private isTable(rows: any[][]): boolean {
+    return rows.length >= 2 && rows[0].every(cell => typeof cell === 'string' || cell === null);
   }
 
   private addTableSlide(name: string, rows: any[][], slideId: number) {
@@ -391,11 +401,12 @@ export class PowerPointGenerator {
     for (const [name, rows] of Object.entries(data.sheets)) {
       if (!rows || rows.length < 2) continue;
       const slice = rows.slice(0, MAX_ROWS + 1);
-      if (this.isTable(slice)) this.addTableSlide(name, slice, sid++);
-      else if (this.isChart(slice)) {
+      if (this.isChartable(slice)) {
         this.addChartSlide(name, slice, sid++);
         this.addComboSlide(name, slice, sid++);
         this.addPieSlide(name, slice, sid++);
+      } else if (this.isTable(slice)) {
+        this.addTableSlide(name, slice, sid++);
       }
     }
 

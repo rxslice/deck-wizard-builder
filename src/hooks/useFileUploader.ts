@@ -22,7 +22,7 @@ export const useFileUploader = (config: FileUploaderConfig = {}) => {
   const { toast } = useToast();
 
   const {
-    maxFileSize = 100 * 1024 * 1024, // 100MB
+    maxFileSize = 20 * 1024 * 1024, // 20MB, matches DEFAULT_SECURITY_CONFIG
     allowedTypes = [
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'application/vnd.ms-excel'

@@ -154,6 +154,11 @@ let dispatch: React.Dispatch<Action>
 function toast({ ...props }: Toast) {
   const id = genId()
 
+  if (!dispatch) {
+    // No ToastProvider has mounted yet; drop the toast instead of throwing.
+    return { id, dismiss: () => {}, update: () => {} }
+  }
+
   const update = (props: ToasterToast) =>
     dispatch({
       type: "UPDATE_TOAST",
@@ -182,29 +187,20 @@ function toast({ ...props }: Toast) {
 
 function useToast() {
   const context = React.useContext(ToastContext)
-  
-  if (!context) {
-    const [state, setState] = React.useState<State>({ toasts: [] })
-    
-    React.useEffect(() => {
-      const cleanup = () => {
-        toastTimeouts.forEach((timeout) => clearTimeout(timeout))
-        toastTimeouts.clear()
-      }
-      
-      return cleanup
-    }, [])
 
+  // Hooks run unconditionally; the provider's dispatch backs the global toast().
+  React.useEffect(() => {
+    if (context) dispatch = context.dispatch
+  }, [context])
+
+  if (!context) {
+    // Outside a ToastProvider there is nothing to render toasts into.
     return {
-      ...state,
+      toasts: [] as ToasterToast[],
       toast,
-      dismiss: (toastId?: string) => dispatch({ type: "DISMISS_TOAST", toastId }),
+      dismiss: (toastId?: string) => dispatch?.({ type: "DISMISS_TOAST", toastId }),
     }
   }
-
-  React.useEffect(() => {
-    dispatch = context.dispatch
-  }, [context.dispatch])
 
   return {
     ...context.state,

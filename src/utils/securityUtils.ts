@@ -13,7 +13,7 @@ export interface SecurityConfig {
 }
 
 export const DEFAULT_SECURITY_CONFIG: SecurityConfig = {
-  maxFileSize: 100 * 1024 * 1024, // 100MB
+  maxFileSize: 20 * 1024 * 1024, // 20MB: parsing runs in the browser tab
   maxRows: 50000,
   maxSheets: 50,
   allowedFileTypes: [
@@ -80,7 +80,7 @@ export const logSecurityEvent = (event: string, details: any): void => {
 export const createSecureFileName = (originalName: string): string => {
   // Remove path separators and dangerous characters
   const safeName = originalName
-    .replace(/[\/\\:*?"<>|]/g, '_')
+    .replace(/[/\\:*?"<>|]/g, '_')
     .replace(/\.\./g, '_');
   
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');

@@ -16,7 +16,8 @@ export interface UserProject {
 export interface ProjectStats {
   totalProjects: number;
   completedProjects: number;
-  processingTime: number;
+  /** Average processing time in seconds; null until durations are recorded. */
+  processingTime: number | null;
   avgSlidesPerProject: number;
 }
 
@@ -84,7 +85,8 @@ export class DataService {
     return {
       totalProjects: projects.length,
       completedProjects: completed.length,
-      processingTime: completed.reduce((sum, p) => sum + (Math.random() * 60 + 30), 0) / completed.length || 0,
+      // No duration is stored per project, so report none rather than invent one.
+      processingTime: null,
       avgSlidesPerProject: completed.reduce((sum, p) => sum + p.slides_count, 0) / completed.length || 0,
     };
   }

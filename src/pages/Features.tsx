@@ -15,7 +15,7 @@ const features = [
     icon: Upload,
     title: "Smart File Processing",
     description: "Drag and drop your completed model. Our engine automatically identifies key metrics and valuation outputs.",
-    details: ["Automatic data recognition", "Support for complex models", "Error detection and validation", "100MB file size limit"]
+    details: ["Automatic data recognition", "Support for complex models", "Error detection and validation", "20MB file size limit"]
   },
   {
     icon: Cpu,

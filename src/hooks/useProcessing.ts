@@ -41,6 +41,7 @@ type ProcessingAction =
   | { type: 'UPDATE_STEP'; stepId: string; status: ProcessingStep['status']; message?: string }
   | { type: 'SET_SESSION_FLAG'; flag: 'hasValidation' | 'hasGeneration'; value: boolean }
   | { type: 'COMPLETE_SESSION' }
+  | { type: 'END_PROCESSING' }
   | { type: 'RESET' };
 
 const initialSteps: ProcessingStep[] = [
@@ -107,6 +108,11 @@ function processingReducer(state: ProcessingState, action: ProcessingAction): Pr
           : null,
       };
 
+    // Terminal transition for every exit path (failure, cancellation, success).
+    // Clears the busy flag; `completed` stays true only if COMPLETE_SESSION ran.
+    case 'END_PROCESSING':
+      return state.isProcessing ? { ...state, isProcessing: false } : state;
+
     case 'RESET':
       return initialState;
 
@@ -152,8 +158,15 @@ export const useProcessing = () => {
     customTheme?: Partial<ThemeSettings>
   ): Promise<ProcessingResult> => {
     // Create abort controller for cancellation
-    abortControllerRef.current = new AbortController();
-    const { signal } = abortControllerRef.current;
+    abortControllerRef.current?.abort(); // a new run supersedes any older one
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    const { signal } = controller;
+    const cancelled = (): ProcessingResult => ({
+      success: false,
+      error: 'Processing was cancelled',
+      errorCode: 'CANCELLED'
+    });
 
     dispatch({ type: 'START_PROCESSING', fileName: file.name });
 
@@ -181,6 +194,7 @@ export const useProcessing = () => {
         updateStep('validation', 'completed', `Validated ${parsedData.metadata.sheetCount} sheets, macros stripped`);
         dispatch({ type: 'SET_SESSION_FLAG', flag: 'hasValidation', value: true });
       } catch (error) {
+        if (signal.aborted) return cancelled();
         const errorMessage = error instanceof SecurityError 
           ? `Security validation failed: ${error.message}`
           : 'File validation failed';
@@ -202,6 +216,7 @@ export const useProcessing = () => {
         
         updateStep('extraction', 'completed', 'Financial metrics and data extracted');
       } catch (error) {
+        if (signal.aborted) return cancelled();
         updateStep('extraction', 'error', 'Data extraction failed');
         return {
           success: false,
@@ -258,13 +273,7 @@ export const useProcessing = () => {
         };
 
       } catch (error) {
-        if (signal.aborted) {
-          return {
-            success: false,
-            error: 'Processing was cancelled',
-            errorCode: 'CANCELLED'
-          };
-        }
+        if (signal.aborted) return cancelled();
         
         updateStep('generation', 'error', 'PowerPoint generation failed');
         return {
@@ -275,13 +284,7 @@ export const useProcessing = () => {
       }
 
     } catch (error) {
-      if (signal.aborted) {
-        return {
-          success: false,
-          error: 'Processing was cancelled',
-          errorCode: 'CANCELLED'
-        };
-      }
+      if (signal.aborted) return cancelled();
       
       let errorMessage = 'Unknown error occurred';
       let errorCode = 'UNKNOWN_ERROR';
@@ -299,7 +302,11 @@ export const useProcessing = () => {
         errorCode
       };
     } finally {
-      abortControllerRef.current = null;
+      // Only the newest run may settle the shared state.
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+        dispatch({ type: 'END_PROCESSING' });
+      }
     }
   }, [updateStep, calculateProgress]);
 
