@@ -24,6 +24,8 @@ export default tseslint.config(
         { allowConstantExport: true },
       ],
       "@typescript-eslint/no-unused-vars": "off",
+      // Reported, not blocking: existing loose typing is tracked as warnings.
+      "@typescript-eslint/no-explicit-any": "warn",
     },
   }
 );

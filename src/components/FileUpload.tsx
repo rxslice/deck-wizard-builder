@@ -131,7 +131,7 @@ export default function FileUpload() {
           onClick={() => fileInputRef.current?.click()}
           role="button"
           tabIndex={0}
-          aria-label="Upload Excel file - supports .xlsx and .xls files up to 100MB"
+          aria-label="Upload Excel file - supports .xlsx and .xls files up to 20MB"
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
               fileInputRef.current?.click();
@@ -151,7 +151,7 @@ export default function FileUpload() {
             </p>
             
             <div className="text-sm text-slate-500 space-y-1">
-              <div><strong>Supported formats:</strong> .xlsx, .xls (Up to 100MB for large financial models)</div>
+              <div><strong>Supported formats:</strong> .xlsx, .xls (up to 20MB)</div>
               <div className="text-xs">✓ Client-side processing only - your data never leaves your device</div>
               <div className="text-xs">✓ Macros are automatically stripped for security</div>
               <div className="text-xs">✓ Use standardized templates with named ranges for best results</div>
@@ -340,7 +340,7 @@ export default function FileUpload() {
                   <p>• VBA macros are automatically removed from Excel files for security</p>
                   <p>• Generated presentations are clean and safe to share with stakeholders</p>
                   <p>• For optimal results, use our standardized template with proper named ranges</p>
-                  <p>• Supports complex financial models up to 100MB in file size</p>
+                  <p>• Supports complex financial models up to 20MB in file size</p>
                 </div>
                 <div className="flex space-x-3">
                   <Button 

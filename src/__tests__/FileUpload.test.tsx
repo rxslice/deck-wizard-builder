@@ -44,7 +44,9 @@ describe('FileUpload Component', () => {
       processFile: vi.fn(),
       resetProcessing: vi.fn(),
       updateStep: vi.fn(),
-      currentSession: null
+      currentSession: null,
+      canCancel: false,
+      cancelProcessing: vi.fn(),
     });
   });
 
@@ -135,11 +137,21 @@ describe('FileUpload Component', () => {
       processFile: vi.fn(),
       resetProcessing: vi.fn(),
       updateStep: vi.fn(),
-      currentSession: null
+      currentSession: null,
+      canCancel: false,
+      cancelProcessing: vi.fn(),
     });
 
     renderWithProviders(<FileUpload />);
-    
+
+    // The progress panel belongs to a selected file, so select one first.
+    const file = new File(['test content'], 'test.xlsx', {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+    fireEvent.drop(screen.getByRole('button', { name: /upload excel file/i }), {
+      dataTransfer: { files: [file], types: ['Files'] }
+    });
+
     expect(screen.getByRole('progressbar')).toBeInTheDocument();
     expect(screen.getByText('Security Validation')).toBeInTheDocument();
   });

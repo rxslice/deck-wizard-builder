@@ -21,6 +21,10 @@ export interface ParsedExcelData {
   };
 }
 
+// Resource limits applied while parsing (file size is checked by validateFile).
+export const MAX_SHEETS = 50;
+export const MAX_CELLS_PER_SHEET = 1_000_000;
+
 export const parseExcelFile = async (file: File): Promise<ParsedExcelData> => {
   const startTime = Date.now();
   
@@ -49,8 +53,22 @@ export const parseExcelFile = async (file: File): Promise<ParsedExcelData> => {
     let totalRows = 0;
 
     // Process each sheet
+    if (workbook.SheetNames.length > MAX_SHEETS) {
+      throw new SecurityError(`Workbook has too many sheets (max: ${MAX_SHEETS})`, 'TOO_MANY_SHEETS');
+    }
+
     for (const sheetName of workbook.SheetNames) {
       const worksheet = workbook.Sheets[sheetName];
+
+      // Check the declared sheet size before expanding it into arrays, so a
+      // tiny file that declares a huge range cannot exhaust memory.
+      if (worksheet?.['!ref']) {
+        const range = XLSX.utils.decode_range(worksheet['!ref']);
+        const cells = (range.e.r - range.s.r + 1) * (range.e.c - range.s.c + 1);
+        if (cells > MAX_CELLS_PER_SHEET) {
+          throw new SecurityError(`Sheet "${sheetName}" is too large (max: ${MAX_CELLS_PER_SHEET.toLocaleString()} cells)`, 'SHEET_TOO_LARGE');
+        }
+      }
       
       // Convert to JSON with security sanitization
       const sheetData = XLSX.utils.sheet_to_json(worksheet, { 
